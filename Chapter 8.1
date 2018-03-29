@@ -1,0 +1,42 @@
+{
+    "mongoServers": [
+    {
+        "host": "localhost",
+        "port": 27017
+    }],
+    "mongoCredentials": [],
+    "dbName": "kaa-pi3-dht11-data",
+    "connectionsPerHost":
+    {
+        "int": 30
+    },
+    "maxWaitTime":
+    {
+        "int": 120000
+    },
+    "connectionTimeout":
+    {
+        "int": 5000
+    },
+    "socketTimeout":
+    {
+        "int": 0
+    },
+    "socketKeepalive":
+    {
+        "boolean": false
+    },
+    "includeClientProfile":
+    {
+        "boolean": true
+    },
+    "includeServerProfile":
+    {
+        "boolean": true
+    },
+    "minLogSchemaVersion": 1,
+    "maxLogSchemaVersion": 2147483647,
+    "pluginTypeName": "MongoDB",
+    "pluginClassName": "org.kaaproject.kaa.server.appenders.mongo.appender.MongoDbLogAppender",
+    "headerStructure": ["Endpointkeyhash", "Headerversion", "Timestamp", "Applicationtoken", "Logschemaversion"]
+} 
