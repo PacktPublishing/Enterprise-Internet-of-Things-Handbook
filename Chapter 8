@@ -1,0 +1,192 @@
+// Modified version of: https://kaaproject.github.io/kaa/docs/v0.10.0/Programming-guide/Your-first-Kaa-application/
+#include<stdio.h>
+#include<stdlib.h>
+#include<stdint.h>
+#include<time.h>
+#include<kaa.h>
+#include<platform/kaa_client.h>
+#include<kaa_error.h>
+#include<kaa_configuration_manager.h>
+#include<kaa_logging.h>
+#include<gen/kaa_logging_gen.h>
+#include<platform/kaa_client.h>
+#include<utilities/kaa_log.h>
+#include<platform-impl/common/ext_log_upload_strategies.h>
+
+#include<wiringPi.h>
+
+#define MAXTIMINGS  85
+#define DHTPIN      8  /* https://pinout.xyz/pinout/wiringpi */
+int dht11_dat[5] = { 0, 0, 0, 0, 0 };
+
+static int32_t sample_period;
+statictime_tlast_sample_time;
+externkaa_error_text_unlimited_log_storage_create(void **log_storage_context_p, kaa_logger_t *logger);
+
+int dht11_read_val(int *humidity, int *temperature)
+{
+uint8_t laststate   = HIGH;
+uint8_t counter     = 0;
+uint8_t j       = 0, i;
+
+dht11_dat[0] = dht11_dat[1] = dht11_dat[2] = dht11_dat[3] = dht11_dat[4] = 0;
+
+    /* pull pin down for 18 milliseconds */
+pinMode( DHTPIN, OUTPUT );
+digitalWrite( DHTPIN, LOW );
+delay( 18 );
+    /* then pull it up for 40 microseconds */
+digitalWrite( DHTPIN, HIGH );
+delayMicroseconds( 40 );
+    /* prepare to read the pin */
+pinMode( DHTPIN, INPUT );
+
+    /* detect change and read data */
+for ( i = 0; i< MAXTIMINGS; i++ )
+    {
+counter = 0;
+while ( digitalRead( DHTPIN ) == laststate )
+        {
+counter++;
+delayMicroseconds( 1 );
+if ( counter == 255 )
+            {
+break;
+            }
+        }
+laststate = digitalRead( DHTPIN );
+
+if ( counter == 255 )
+break;
+
+        /* ignore first 3 transitions */
+if ( (i>= 4) && (i % 2 == 0) )
+        {
+            /* shove each bit into the storage bytes */
+dht11_dat[j / 8] <<= 1;
+            /* if ( counter > 50 ) */
+if ( counter > 50 )     /* <- !! here !! */
+dht11_dat[j / 8] |= 1;
+j++;
+        }
+    }
+
+    // verify checksum and print the verified data
+if ((j >= 40) && (dht11_dat[4] == ((dht11_dat[0] + dht11_dat[1] + dht11_dat[2] + dht11_dat[3]) & 0xFF))) {
+        *humidity = dht11_dat[0] + dht11_dat[1] / 100;
+        *temperature = dht11_dat[2] + dht11_dat[3] / 100;
+return 0;
+    }
+
+return -1;
+}
+
+/* Periodically called by Kaa SDK. */
+static void data_sampling_callback(void *context)
+{
+time_tcurrent_time = time(NULL);
+    /* Respect sample period */
+if (difftime(current_time, last_sample_time) >= sample_period) {
+int temperature = 0;
+int humidity = 0;
+
+if (dht11_read_val(&temperature, &humidity)) {
+
+printf("Temperature: %d\n", temperature);
+printf("Humidity: %d\n", humidity);
+
+last_sample_time = current_time;
+kaa_user_log_record_t *log_record = kaa_logging_data_collection_create();
+
+log_record->temperature = temperature;
+log_record->humidity = humidity;
+
+kaa_logging_add_record(kaa_client_get_context(context)->log_collector, log_record, NULL);
+        } else {
+printf("Invalid Data, Skipping...\n");
+        }
+    }
+}
+
+
+/* Receives new configuration data. */
+statickaa_error_ton_configuration_updated(void *context, constkaa_root_configuration_t *conf)
+{
+    (void) context;
+printf("Received configuration data. New sample period: %i seconds\n", conf->sample_period);
+sample_period = conf->sample_period;
+return KAA_ERR_NONE;
+}
+
+
+int main(void)
+{
+    /* Init random generator used to generate temperature */
+srand(time(NULL));
+    /* Prepare Kaa client. */
+kaa_client_t *kaa_client = NULL;
+kaa_error_t error = kaa_client_create(&kaa_client, NULL);
+if (error) {
+return EXIT_FAILURE;
+    }
+    /* Configure notification manager. */
+kaa_configuration_root_receiver_t receiver = {
+.context = NULL,
+.on_configuration_updated = on_configuration_updated
+    };
+error = kaa_configuration_manager_set_root_receiver(
+kaa_client_get_context(kaa_client)->configuration_manager,
+&receiver);
+if (error) {
+return EXIT_FAILURE;
+    }
+    /* Obtain default configuration shipped within SDK. */
+constkaa_root_configuration_t *dflt = kaa_configuration_manager_get_configuration(
+kaa_client_get_context(kaa_client)->configuration_manager);
+printf("Default sample period: %i seconds\n", dflt->sample_period);
+sample_period = dflt->sample_period;
+
+    /* Configure data collection. */
+void *log_storage_context         = NULL;
+void *log_upload_strategy_context = NULL;
+/* The internal memory log storage distributed with Kaa SDK. */
+error = ext_unlimited_log_storage_create(&log_storage_context,
+kaa_client_get_context(kaa_client)->logger);
+if (error) {
+return EXIT_FAILURE;
+    }
+    /* Create a strategy based on timeout. */
+error = ext_log_upload_strategy_create(
+kaa_client_get_context(kaa_client), &log_upload_strategy_context,
+                KAA_LOG_UPLOAD_BY_TIMEOUT_STRATEGY);
+if (error) {
+return EXIT_FAILURE;
+    }
+    /* Strategy will upload logs every 5 seconds. */
+error = ext_log_upload_strategy_set_upload_timeout(log_upload_strategy_context, 5);
+if (error) {
+return EXIT_FAILURE;
+    }
+    /* Specify log bucket size constraints. */
+kaa_log_bucket_constraints_tbucket_sizes = {
+.max_bucket_size       = 32,   /* Bucket size in bytes. */
+.max_bucket_log_count  = 2,    /* Maximum log count in one bucket. */
+    };
+    /* Initialize the log storage and strategy (by default, they are not set). */
+error = kaa_logging_init(kaa_client_get_context(kaa_client)->log_collector,
+log_storage_context, log_upload_strategy_context, &bucket_sizes);
+if (error) {
+return EXIT_FAILURE;
+    }
+
+/* Start Kaa SDK's main loop.data_sampling_callback is called once per 15 seconds. */
+error = kaa_client_start(kaa_client, data_sampling_callback, kaa_client, 1);
+    /* Should get here only after Kaa stops. */
+kaa_client_destroy(kaa_client);
+
+if (error) {
+return EXIT_FAILURE;
+    }
+return EXIT_SUCCESS;
+}
+
