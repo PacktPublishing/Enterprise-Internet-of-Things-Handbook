@@ -1,0 +1,7 @@
+{
+  "name": "cloud_function",
+  "version": "0.0.1",
+  "dependencies": {
+    "@google-cloud/bigquery": "^1.0.0"
+  }
+}
