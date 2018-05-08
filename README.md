@@ -8,7 +8,7 @@ In this book, we will be covering five popular IoT platforms, namely, AWS IoT, M
 Besides building solutions, you will look at how Machine Learning and IoT go hand in hand and later design a simple predictive web service based on this concept. By the end of this book, you will be in a position to implement an IoT strategy best-fit for your organization.
 
 ## Instructions and Navigation
-All of the code is organized into folders. For example, Chapter02.
+All of the code is organized into folders. For example, Chapter03.
 
 
 
