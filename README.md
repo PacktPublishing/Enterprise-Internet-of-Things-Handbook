@@ -25,3 +25,7 @@ externkaa_error_text_unlimited_log_storage_create(void **log_storage_context_p, 
 * [Introduction to Internet of Things [Video]](https://www.packtpub.com/virtualization-and-cloud/introduction-internet-things-video?utm_source=github&utm_medium=repository&utm_campaign=9781788830652)
 
 * [Mastering Internet of Things](https://www.packtpub.com/networking-and-servers/mastering-internet-things?utm_source=github&utm_medium=repository&utm_campaign=9781788397483)
+### Download a free PDF
+
+ <i>If you have already purchased a print or Kindle version of this book, you can get a DRM-free PDF version at no cost.<br>Simply click on the link to claim your free PDF.</i>
+<p align="center"> <a href="https://packt.link/free-ebook/9781788838399">https://packt.link/free-ebook/9781788838399 </a> </p>
