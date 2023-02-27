@@ -10,6 +10,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "aws-iot-device-sdk": "^2.2.0"
+    "aws-iot-device-sdk": "^2.2.12"
   }
 }
